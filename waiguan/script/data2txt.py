@@ -13,6 +13,8 @@ if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
     import xml.etree.ElementTree as ET
+import shutil
+from waiguan.utils.transform import *
 
 VOC_CLASSES = (  # always index 0
     'aeroplane', 'bicycle', 'bird', 'boat',
@@ -177,7 +179,7 @@ class VOCDetection_Waiguan(data.Dataset):
     def __getitem__(self, index):
         im, gt, h, w = self.pull_item(index)
 
-        return im, gt
+        return im, gt, self.ids[index]
 
     def __len__(self):
         return len(self.ids)
@@ -246,19 +248,29 @@ class VOCDetection_Waiguan(data.Dataset):
         '''
         return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
 
-from waiguan.utils.transform import *
-if __name__ == "__main__":
-    #vocDataset = VOCDetection(root= VOC_ROOT, transform=SSDAugmentation(voc['min_dim'],MEANS))
-    #voctDataset = VOCDetection(VOC_ROOT, [('2007', 'test')], BaseTransform(300, MEANS), VOCAnnotationTransform())
+def clean_folder(folder):
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    else:
+        os.makedirs(folder)
 
-    waiguanTrainDataSet = VOCDetection_Waiguan(WAIGUAN_ROOT, transform= SSDAugmentation(waiguan['min_dim'],MEANS))
-    waiguanTestDataSet = VOCDetection_Waiguan(WAIGUAN_ROOT,image_sets='test', transform=BaseTransform(300, MEANS), target_transform=VOCAnnotationTransform())
+def output_result(folder):
+    clean_folder(folder)
+    waiguanTestDataSet = VOCDetection_Waiguan(WAIGUAN_ROOT, image_sets='test', transform=BaseTransform(300, MEANS),target_transform=VOCAnnotationTransform())
     for item in waiguanTestDataSet:
-        img = item[0]
-        print(item[1].shape)
-        labels = list()
-        for i in range(item[1].shape[0]):
-            label = item[1][i][:4]*300
-            labels.append(label)
-        showTensorImage_WithCV_Means_Labels(img,labels)
+        target_file = "{}/{}.txt".format(folder,item[2][1])
+        target_lines=[]
+        print("process: {}".format(item[2][1]))
+        for data in item[1]:
+            bbox = data[0:4]*300
+            label = WAIGUAN_CLASSES[int(data[4])]
+            target_line = "{} {} {} {} {}".format(label,int(bbox[0]),int(bbox[1]),int(bbox[2]),int(bbox[3]))
+            target_lines.append(target_line)
+        with open(target_file,'w') as f:
+           for item in target_lines:
+               f.write("%s\n" % item)
+    print("finished, total file: {}".format(len(waiguanTestDataSet)))
+
+if __name__ == "__main__":
+    output_result("/data_1/data/temp/test")
 
