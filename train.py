@@ -80,7 +80,7 @@ def train():
                                 transform=SSDAugmentation(cfg['min_dim'],
                                                           MEANS))
     elif args.dataset == 'VOC':
-        if args.dataset_root == COCO_ROOT:
+        if args.dataset_root == '':
             parser.error('Must specify dataset if specifying dataset_root')
         cfg = voc
         dataset = VOCDetection(root=args.dataset_root,

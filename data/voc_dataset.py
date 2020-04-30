@@ -1,17 +1,10 @@
-"""VOC Dataset Classes
-
-Original author: Francisco Massa
-https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
-
-Updated by: Ellis Brown, Max deGroot
-"""
-#from .config import HOME
 import os.path as osp
 import sys
 import torch
 import torch.utils.data as data
 import cv2
 import numpy as np
+from tools.utils.img.augment import Compose,ToPointsCoords,Resize, ToPercentCoords,RandomHorizontalMirror,RandomVerticalMirror,ColorJitter,ToAbsoluteCoords,ToBoxesCoords
 if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
@@ -27,6 +20,16 @@ VOC_CLASSES = (  # always index 0
 # note: if you used our download scripts, this should be right
 #VOC_ROOT = osp.join(HOME, "data/VOCdevkit/")
 VOC_ROOT = "/data/voc/VOCdevkit/"
+
+Augmentation = Compose([
+    ToPointsCoords(),
+    Resize((300,300)),
+    RandomHorizontalMirror(),
+    #RandomVerticalMirror(),
+    #ColorJitter(brightness=1, contrast=0.5, saturation=0.8, hue=0.3),
+    ToAbsoluteCoords(),
+    ToBoxesCoords()
+])
 
 class VOCAnnotationTransform(object):
     """Transforms a VOC annotation into a Tensor of bbox coords and label index
@@ -73,7 +76,6 @@ class VOCAnnotationTransform(object):
             bndbox.append(label_idx)
             res += [bndbox]  # [xmin, ymin, xmax, ymax, label_ind]
             # img_id = target.find('filename').text[:-4]
-
         return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
 
 
@@ -132,12 +134,9 @@ class VOCDetection(data.Dataset):
         if self.transform is not None:
             target = np.array(target)
             img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
-            # to rgb
-            img = img[:, :, (2, 1, 0)]
-            # img = img.transpose(2, 0, 1)
             target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
         return torch.from_numpy(img).permute(2, 0, 1), target, height, width
-        # return torch.from_numpy(img), target, height, width
+        #return torch.from_numpy(img), target, height, width
 
     def pull_image(self, index):
         '''Returns the original image object at index in PIL form
@@ -186,6 +185,6 @@ class VOCDetection(data.Dataset):
 if __name__ == "__main__":
     from utils.augmentations import SSDAugmentation
     from tools.utils.img import view
-    dataset = VOCDetection(root=VOC_ROOT, transform=SSDAugmentation(300,(104, 117, 123)))
+    dataset = VOCDetection(root=VOC_ROOT, transform= Augmentation)
     for im ,gt in dataset:
-        view.show_batch_tensor(im)
+        view.show_single_tensor_boxes(im,gt[0:3],percent=False)
